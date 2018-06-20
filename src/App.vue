@@ -1,27 +1,12 @@
 <template>
   <div id="app">
-    <h5>FrontEndSide</h5>
-    <div style="height: 50%; padding: 30px; box-sizing: border-box;">
-      <ag-grid-vue style="width: 100%; height: 300px;" class="ag-theme-balham"
-        :gridOptions="gridOptionsFE"
+    <div style="height: 500px; padding: 30px; box-sizing: border-box;">
+      <ag-grid-vue style="width: 100%; height: 100%;" class="ag-theme-material"
+        :gridOptions="gridOptions"
         :gridReady="onGridReady" 
         :columnDefs="columnDefs"
-        :masterDetail="true"
-        :detailRowHeight="detailRowHeight"
-        :detailCellRenderer="detailCellRenderer"
-        :frameworkComponents="frameworkComponents">
-      </ag-grid-vue>
-    </div>
-    <h5>ServerSide</h5>
-    <div style="height: 250px; padding: 30px; box-sizing: border-box;">
-      <ag-grid-vue style="width: 100%; height: 100%;" class="ag-theme-balham"
-        :gridOptions="gridOptionsBE"
-        :gridReady="onGridReady" 
-        :columnDefs="columnDefs"
-        :masterDetail="true"
-        :detailRowHeight="detailRowHeight"
-        :detailCellRenderer="detailCellRenderer"
-        :frameworkComponents="frameworkComponents">
+        :isFullWidthCell="isFullWidthCell"
+        :getRowHeight="getRowHeight">
       </ag-grid-vue>
     </div>
 </div>
@@ -34,10 +19,10 @@ import "ag-grid-enterprise";
 import Vue from "vue";
 import { AgGridVue } from "ag-grid-vue";
 
-// eslint-disable-next-line
-const DetailCellRenderer = Vue.extend({
+
+const DetailRowComponent = Vue.extend({
   render: function(createElement) {
-    return createElement("h4", "Hi Guild");
+    return createElement("h1", this.params.data.name);
   }
 });
 
@@ -57,25 +42,38 @@ export default {
   },
   data: function() {
     return {
-      gridOptionsFE: null,
-      gridOptionsBE: null,
+      gridOptions: null,
       columnDefs: null,
       detailRowHeight: null,
-      detailCellRenderer: null,
       frameworkComponents: null
     };
   },
+  mounted() {
+    this.gridOptions.api.sizeColumnsToFit();
+  },
   beforeMount() {
-    this.gridOptionsFE = {};
-    this.gridOptionsBE = {
+    this.gridOptions = {
+      animateRows: true,
       rowModelType: "serverSide",
-      pagination: true,
-      paginationPageSize:10,
+      fullWidthCellRendererFramework: DetailRowComponent,
+      autoGroupColumnDef: {
+        headerName: "",
+        suppressMenu: true,
+        width: 30
+      },
+      onGridSizeChanged: () => {
+        this.gridOptions.api.sizeColumnsToFit();
+      }
     };
+
     this.columnDefs = [
       {
+        field: "id",
+        rowGroup: true,
+        hide: true
+      },
+      {
         field: "name",
-        cellRenderer: "agGroupCellRenderer"
       },
       { field: "account" },
       { field: "calls" },
@@ -84,39 +82,38 @@ export default {
         valueFormatter: "x.toLocaleString() + ' m'"
       }
     ];
-    this.detailRowHeight = 50;
-    this.detailCellRenderer = "myDetailCellRenderer";
-    this.frameworkComponents = { myDetailCellRenderer: DetailCellRenderer };
-
-    this.datasource = new BlotterDatasource(enterpriseGetRowsParam =>
-      this.populateTableFromServer(enterpriseGetRowsParam, this.moment)
-    );
   },
   methods: {
+    isFullWidthCell(rowNode) {
+      return rowNode.level === 1;
+    },
+    getRowHeight(params) {
+      return params.node.level === 0 ? 50 : 150;
+    },
     onGridReady(params) {
-      const httpRequest = new XMLHttpRequest();
-      httpRequest.open(
-        "GET",
-        "https://raw.githubusercontent.com/ag-grid/ag-grid-docs/latest/src/javascript-grid-master-detail/custom-detail-with-grid/data/data.json"
-      );
-      httpRequest.send();
-      httpRequest.onreadystatechange = () => {
-        if (httpRequest.readyState === 4 && httpRequest.status === 200) {
-          if (!!params.api.serverSideRowModel) {
-            // ServerSide
-            const dataSource = {getRows: params => params.successCallback(JSON.parse(httpRequest.responseText),-1)};
-            this.gridOptionsBE.api.setServerSideDatasource(dataSource);
-          } else {
-            // FE Side
-            params.api.setRowData(JSON.parse(httpRequest.responseText));
-          }
-        }
-      };
+      fetch("https://raw.githubusercontent.com/ag-grid/ag-grid-docs/latest/src/javascript-grid-master-detail/custom-detail-with-grid/data/data.json")
+        .then(response => response.json())
+        .then(response => {
+          const data = response.map(
+            (el, index) => {
+              el.id = index;
+              return el;
+            }
+          );
+          this.gridOptions.api.setServerSideDatasource({
+            getRows: params => {
+              const groupKeys = params.request.groupKeys;
+
+              if (groupKeys.length === 0) {
+                params.successCallback(data, -1);
+              } else {
+                //Call for detail row
+                params.successCallback([params.parentNode.data], 1);
+              }
+            }
+          });
+        });
     }
   }
 };
 </script>
-
-<style>
-
-</style>
