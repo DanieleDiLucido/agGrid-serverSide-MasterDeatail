@@ -26,15 +26,6 @@ const DetailRowComponent = Vue.extend({
   }
 });
 
-class BlotterDatasource {
-  constructor(getRowsFunction) {
-    this.getRowsFunction = getRowsFunction;
-  }
-  getRows(params) {
-    this.getRowsFunction(params);
-  }
-}
-
 export default {
   name: "app",
   components: {
