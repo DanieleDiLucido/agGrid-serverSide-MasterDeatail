@@ -1,4 +1,4 @@
-# agGrid-serverSide-MasterDeatail-fix 
+# agGrid-serverSide-MasterDeatail
     
 The goal of this repo is to present an easy and clean solution in order to solve the problem with the Master/Detail system that comeup using a **serverSide** rowModel.
 
